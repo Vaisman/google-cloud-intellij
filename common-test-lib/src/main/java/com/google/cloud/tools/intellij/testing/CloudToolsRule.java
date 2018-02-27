@@ -25,10 +25,12 @@ import com.intellij.facet.FacetType;
 import com.intellij.facet.FacetTypeRegistry;
 import com.intellij.ide.highlighter.ModuleFileType;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.module.ModuleType;
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.testFramework.TestLoggerFactory;
 import com.intellij.testFramework.fixtures.IdeaProjectTestFixture;
 import com.intellij.testFramework.fixtures.IdeaTestFixtureFactory;
 import java.io.File;
@@ -109,6 +111,11 @@ public final class CloudToolsRule implements TestRule {
     createTestFiles(description.getMethodName());
     createTestDirectories();
     bindDirectExecutorService();
+    bindTestLoggerFactory();
+  }
+
+  private void bindTestLoggerFactory() {
+    Logger.setFactory(TestLoggerFactory.class);
   }
 
   /** Tears down utilities after the test has finished. */
