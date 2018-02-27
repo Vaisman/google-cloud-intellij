@@ -30,6 +30,7 @@ import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.module.ModuleType;
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.testFramework.LoggedErrorProcessor;
 import com.intellij.testFramework.TestLoggerFactory;
 import com.intellij.testFramework.fixtures.IdeaProjectTestFixture;
 import com.intellij.testFramework.fixtures.IdeaTestFixtureFactory;
@@ -42,6 +43,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import org.jetbrains.annotations.NotNull;
 import org.junit.function.ThrowingRunnable;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
@@ -99,6 +101,10 @@ public final class CloudToolsRule implements TestRule {
   /** Sets up utilities before the test runs. */
   private void setUp(Description description) throws Exception {
     MockitoAnnotations.initMocks(testInstance);
+    // TODO(ivanporty) doesn't work for a first few tests, static instance of default logger stil
+    // used first!
+    bindTestLoggerFactory();
+
     testFixture =
         IdeaTestFixtureFactory.getFixtureFactory()
             .createFixtureBuilder(description.getMethodName())
@@ -111,10 +117,26 @@ public final class CloudToolsRule implements TestRule {
     createTestFiles(description.getMethodName());
     createTestDirectories();
     bindDirectExecutorService();
-    bindTestLoggerFactory();
   }
 
   private void bindTestLoggerFactory() {
+    LoggedErrorProcessor.setNewInstance(
+        new LoggedErrorProcessor() {
+          @Override
+          public void processError(
+              String message,
+              Throwable t,
+              String[] details,
+              @NotNull org.apache.log4j.Logger logger) {
+            logger.debug(message, t);
+          }
+
+          @Override
+          public void processWarn(
+              String message, Throwable t, @NotNull org.apache.log4j.Logger logger) {
+            logger.warn(message, t);
+          }
+        });
     Logger.setFactory(TestLoggerFactory.class);
   }
 

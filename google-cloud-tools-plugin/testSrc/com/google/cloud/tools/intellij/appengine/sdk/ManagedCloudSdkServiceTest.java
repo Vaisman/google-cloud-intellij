@@ -31,8 +31,6 @@ import static org.mockito.Mockito.when;
 import com.google.cloud.tools.intellij.appengine.sdk.CloudSdkService.SdkStatus;
 import com.google.cloud.tools.intellij.appengine.sdk.ManagedCloudSdkService.ManagedSdkJobType;
 import com.google.cloud.tools.intellij.testing.CloudToolsRule;
-import com.google.cloud.tools.intellij.testing.log.TestInMemoryLogger;
-import com.google.cloud.tools.intellij.util.ThreadUtil;
 import com.google.cloud.tools.managedcloudsdk.ManagedCloudSdk;
 import com.google.cloud.tools.managedcloudsdk.ProgressListener;
 import com.google.cloud.tools.managedcloudsdk.UnsupportedOsException;
@@ -42,13 +40,11 @@ import com.google.cloud.tools.managedcloudsdk.components.SdkComponent;
 import com.google.cloud.tools.managedcloudsdk.components.SdkComponentInstaller;
 import com.google.cloud.tools.managedcloudsdk.install.SdkInstaller;
 import com.google.cloud.tools.managedcloudsdk.update.SdkUpdater;
-import com.google.common.util.concurrent.MoreExecutors;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutorService;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -76,11 +72,6 @@ public class ManagedCloudSdkServiceTest {
   @Before
   public void setUp() throws UnsupportedOsException {
     doReturn(mockManagedCloudSdk).when(sdkService).createManagedSdk();
-    // TODO(ivanporty) remove once test logging system is done via CloudToolsRule
-    sdkService.setLogger(new TestInMemoryLogger());
-    // make sure everything in test is done synchronously
-    ExecutorService directExecutorService = MoreExecutors.newDirectExecutorService();
-    ThreadUtil.getInstance().setBackgroundExecutorService(directExecutorService);
     // run UI updates synchronously
     doAnswer(
             invocation -> {
