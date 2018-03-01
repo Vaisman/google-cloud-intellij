@@ -79,12 +79,7 @@ public class ProjectSelector extends JPanel {
     googleLoginListener =
         () -> {
           if (cloudProject != null) {
-            ApplicationManager.getApplication()
-                .invokeLater(
-                    () -> {
-                      updateCloudProjectSelection(cloudProject);
-                      notifyProjectSelectionListeners();
-                    });
+            ApplicationManager.getApplication().invokeLater(this::handleLoginStateChanged);
           }
         };
     messageBusConnection = ApplicationManager.getApplication().getMessageBus().connect();
@@ -182,7 +177,7 @@ public class ProjectSelector extends JPanel {
             if (Services.getLoginService().isLoggedIn()) {
               handleOpenProjectSelectionDialog();
             } else {
-              Services.getLoginService().logIn();
+              Services.getLoginService().logIn(null, this::handleLoginStateChanged);
             }
           }
         });
@@ -252,6 +247,11 @@ public class ProjectSelector extends JPanel {
 
   private void notifyProjectSelectionListeners() {
     projectSelectionListeners.forEach(listener -> listener.projectSelected(cloudProject));
+  }
+
+  private void handleLoginStateChanged() {
+    updateCloudProjectSelection(cloudProject);
+    notifyProjectSelectionListeners();
   }
 
   /** Sets IDE {@link Project} to be used to update active cloud project settings. */
