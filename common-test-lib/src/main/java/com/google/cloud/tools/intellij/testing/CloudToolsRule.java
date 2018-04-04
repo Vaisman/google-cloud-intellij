@@ -24,6 +24,7 @@ import com.intellij.facet.FacetManager;
 import com.intellij.facet.FacetType;
 import com.intellij.facet.FacetTypeRegistry;
 import com.intellij.ide.highlighter.ModuleFileType;
+import com.intellij.idea.IdeaTestApplication;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
@@ -101,7 +102,9 @@ public final class CloudToolsRule implements TestRule {
         IdeaTestFixtureFactory.getFixtureFactory()
             .createFixtureBuilder(description.getMethodName())
             .getFixture();
-    testFixture.setUp();
+
+    // make sure test application is initialized even if test fixtures are not required.
+    IdeaTestApplication.getInstance();
 
     populateTestFixture();
     replaceServices();
@@ -115,23 +118,36 @@ public final class CloudToolsRule implements TestRule {
   private void tearDown() throws Exception {
     PicoContainerTestUtil.getInstance().tearDown();
     filesToDelete.forEach(File::delete);
-
-    ApplicationManager.getApplication()
-        .invokeAndWait(
-            () -> {
-              try {
-                testFixture.tearDown();
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
-            });
+    tearDownTestFixture();
   }
 
   /** Populates all fields annotated with {@link TestFixture} with the created test fixture. */
-  private void populateTestFixture() throws IllegalAccessException {
-    for (Field field : getFieldsWithAnnotation(testInstance.getClass(), TestFixture.class)) {
+  private void populateTestFixture() throws Exception {
+    List<Field> testFixtureFields =
+        getFieldsWithAnnotation(testInstance.getClass(), TestFixture.class);
+    for (Field field : testFixtureFields) {
       field.setAccessible(true);
       field.set(testInstance, testFixture);
+    }
+    if (!testFixtureFields.isEmpty()) {
+      testFixture.setUp();
+    }
+  }
+
+  /** Tears down test fixture (only if test fixture was requested for the test.) */
+  private void tearDownTestFixture() {
+    List<Field> testFixtureFields =
+        getFieldsWithAnnotation(testInstance.getClass(), TestFixture.class);
+    if (!testFixtureFields.isEmpty()) {
+      ApplicationManager.getApplication()
+          .invokeAndWait(
+              () -> {
+                try {
+                  testFixture.tearDown();
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              });
     }
   }
 

@@ -16,39 +16,61 @@
 
 package com.google.cloud.tools.intellij.appengine.cloud.flexible;
 
+import static com.google.common.truth.Truth.assertThat;
+
+import com.google.cloud.tools.intellij.testing.CloudToolsRule;
+import com.google.cloud.tools.intellij.testing.TestFile;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.util.Disposer;
-import com.intellij.testFramework.PlatformTestCase;
 import java.io.File;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
-public class SelectConfigDestinationFolderDialogTest extends PlatformTestCase {
+public class SelectConfigDestinationFolderDialogTest {
 
+  @Rule public CloudToolsRule cloudToolsRule = new CloudToolsRule(this);
+
+  @TestFile(name = "temp file")
   private File file;
 
-  @Override
-  public void setUp() throws Exception {
-    super.setUp();
+  @Before
+  public void setUp() throws Exception {}
 
-    file = createTempFile("temp file", "");
-  }
-
+  @Test
   public void testSuggestion() {
-    SelectConfigDestinationFolderDialog dialog =
-        new SelectConfigDestinationFolderDialog(null, file.getParentFile().getPath(), "");
-    assertEquals(file.toPath().getParent(), dialog.getDestinationFolder());
-    Disposer.dispose(dialog.getDisposable());
+    ApplicationManager.getApplication()
+        .invokeAndWait(
+            () -> {
+              SelectConfigDestinationFolderDialog dialog =
+                  new SelectConfigDestinationFolderDialog(null, file.getParentFile().getPath(), "");
+              assertThat((Object) file.toPath().getParent())
+                  .isEqualTo(dialog.getDestinationFolder());
+              Disposer.dispose(dialog.getDisposable());
+            });
   }
 
+  @Test
   public void testSuggestion_nonExistingParent() {
-    SelectConfigDestinationFolderDialog dialog =
-        new SelectConfigDestinationFolderDialog(null, "I don't exist.", "");
-    assertEquals("I don't exist.", dialog.getDestinationFolder().toString());
-    Disposer.dispose(dialog.getDisposable());
+    ApplicationManager.getApplication()
+        .invokeAndWait(
+            () -> {
+              SelectConfigDestinationFolderDialog dialog =
+                  new SelectConfigDestinationFolderDialog(null, "I don't exist.", "");
+              assertThat(dialog.getDestinationFolder().toString()).isEqualTo("I don't exist.");
+              Disposer.dispose(dialog.getDisposable());
+            });
   }
 
+  @Test
   public void testSuggestion_nullPath() {
-    SelectConfigDestinationFolderDialog dialog =
-        new SelectConfigDestinationFolderDialog(null, null, "");
-    assertEquals("", dialog.getDestinationFolder().toString());
-    Disposer.dispose(dialog.getDisposable());
+    ApplicationManager.getApplication()
+        .invokeAndWait(
+            () -> {
+              SelectConfigDestinationFolderDialog dialog =
+                  new SelectConfigDestinationFolderDialog(null, null, "");
+              assertThat(dialog.getDestinationFolder().toString()).isEmpty();
+              Disposer.dispose(dialog.getDisposable());
+            });
   }
 }

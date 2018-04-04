@@ -16,6 +16,8 @@
 
 package com.google.cloud.tools.intellij.debugger;
 
+import static com.intellij.testFramework.UsefulTestCase.assertEmpty;
+import static junit.framework.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyString;
@@ -32,6 +34,8 @@ import com.google.api.services.clouddebugger.v2.model.StatusMessage;
 import com.google.cloud.tools.intellij.debugger.CloudLineBreakpointType.CloudLineBreakpoint;
 import com.google.cloud.tools.intellij.login.CredentialedUser;
 import com.google.cloud.tools.intellij.login.IntegratedGoogleLoginService;
+import com.google.cloud.tools.intellij.testing.CloudToolsRule;
+import com.google.cloud.tools.intellij.testing.TestFixture;
 import com.google.cloud.tools.intellij.testing.TestUtils;
 import com.google.gdt.eclipse.login.common.GoogleLoginState;
 import com.intellij.debugger.actions.DebuggerActions;
@@ -42,9 +46,11 @@ import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.actionSystem.IdeActions;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.impl.ProjectImpl;
-import com.intellij.testFramework.PlatformTestCase;
+import com.intellij.testFramework.ThreadTracker;
+import com.intellij.testFramework.fixtures.IdeaProjectTestFixture;
 import com.intellij.ui.content.Content;
 import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.ui.UIUtil;
@@ -61,23 +67,28 @@ import java.util.List;
 import javax.swing.Icon;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 
-public class CloudDebugProcessTest extends PlatformTestCase {
+public class CloudDebugProcessTest {
 
+  @Rule public CloudToolsRule cloudToolsRule = new CloudToolsRule(this);
+
+  @TestFixture private IdeaProjectTestFixture testFixture;
   private CloudDebugProcess process;
 
   @Before
-  @Override
-  protected void setUp() throws Exception {
-    super.setUp();
-
+  public void setUp() throws Exception {
     XDebugSession session = mock(XDebugSession.class);
-    when(session.getProject()).thenReturn(this.getProject());
+    when(session.getProject()).thenReturn(testFixture.getProject());
     process = new CloudDebugProcess(session);
+
+    ThreadTracker.longRunningThreadCreated(ApplicationManager.getApplication(), "list breakpoints");
   }
 
+  @Test
   public void testRemoveConsolePane() {
     // if this was a JUnit4 test case, we could set the LoggedErrorProcessor to a mock that does
     // not fail the test if an error is logged using @BeforeClass. Since this is a JUnit3 test
@@ -106,14 +117,19 @@ public class CloudDebugProcessTest extends PlatformTestCase {
     LayoutStateDefaults defaults = mock(LayoutStateDefaults.class);
     when(ui.getDefaults()).thenReturn(defaults);
 
-    layouter.registerAdditionalContent(ui);
+    ApplicationManager.getApplication()
+        .invokeAndWait(
+            () -> {
+              layouter.registerAdditionalContent(ui);
 
-    verify(ui, Mockito.atLeast(1)).removeContent(console, false);
+              verify(ui, Mockito.atLeast(1)).removeContent(console, false);
 
-    process.getStateController().stopBackgroundListening();
-    UIUtil.dispatchAllInvocationEvents();
+              process.getStateController().stopBackgroundListening();
+              UIUtil.dispatchAllInvocationEvents();
+            });
   }
 
+  @Test
   public void testRegisterAdditionalActions_close() {
     ActionManager manager = ActionManager.getInstance();
     AnAction action0 = manager.getAction(IdeActions.ACTION_PIN_ACTIVE_TAB);
@@ -138,50 +154,62 @@ public class CloudDebugProcessTest extends PlatformTestCase {
     assertEquals(action3, leftToolbar.getChildActionsOrStubs()[1]);
   }
 
+  @Test
   public void testRegisterAdditionalActions_rerun() {
     assertRemoveFromLeftToolbar(IdeActions.ACTION_RERUN);
   }
 
+  @Test
   public void testRegisterAdditionalActions_stop() {
     assertRemoveFromLeftToolbar(IdeActions.ACTION_STOP_PROGRAM);
   }
 
+  @Test
   public void testRegisterAdditionalActions_resume() {
     assertRemoveFromLeftToolbar(XDebuggerActions.RESUME);
   }
 
+  @Test
   public void testRegisterAdditionalActions_pause() {
     assertRemoveFromLeftToolbar(XDebuggerActions.PAUSE);
   }
 
+  @Test
   public void testRegisterAdditionalActions_mute() {
     assertRemoveFromLeftToolbar(XDebuggerActions.MUTE_BREAKPOINTS);
   }
 
+  @Test
   public void testRegisterAdditionalActions_forceStepInto() {
     assertRemoveFromTopToolbar(XDebuggerActions.FORCE_STEP_INTO);
   }
 
+  @Test
   public void testRegisterAdditionalActions_stepOver() {
     assertRemoveFromTopToolbar(XDebuggerActions.STEP_OVER);
   }
 
+  @Test
   public void testRegisterAdditionalActions_stepInto() {
     assertRemoveFromTopToolbar(XDebuggerActions.STEP_INTO);
   }
 
+  @Test
   public void testRegisterAdditionalActions_stepOut() {
     assertRemoveFromTopToolbar(XDebuggerActions.STEP_OUT);
   }
 
+  @Test
   public void testRegisterAdditionalActions_runToCursor() {
     assertRemoveFromTopToolbar(XDebuggerActions.RUN_TO_CURSOR);
   }
 
+  @Test
   public void testRegisterAdditionalActions_evaluate() {
     assertRemoveFromTopToolbar(XDebuggerActions.EVALUATE_EXPRESSION);
   }
 
+  @Test
   public void testRegisterAdditionalActions_dropFrame() {
     // name of constant "POP_FRAME" and UI label "Drop Frame" are inconsistent
     assertRemoveFromTopToolbar(DebuggerActions.POP_FRAME);
@@ -221,6 +249,7 @@ public class CloudDebugProcessTest extends PlatformTestCase {
     assertEmpty(topToolbar.getChildActionsOrStubs());
   }
 
+  @Test
   public void testUpdateBreakpointRepresentationUsesBreakpointErrorMsgAndIcon() throws Exception {
     XBreakpointManager breakpointManager = mock(XBreakpointManager.class);
     CloudDebugProcess cloudDebugProcess =
@@ -240,11 +269,13 @@ public class CloudDebugProcessTest extends PlatformTestCase {
     verify(breakpointManager).updateBreakpointPresentation(xBreakpoint, icon, "mock error message");
   }
 
+  @Test
   public void testUpdateBreakpointRepresentationUsesMutedIconIfBreakpointsAreMuted()
       throws Exception {
     verifyMutedIconSettingInUpdateBreakpointPresentation(Boolean.TRUE);
   }
 
+  @Test
   public void testUpdateBreakpointRepresentationUsesNonMutedIconIfBreakpointsAreNotMuted()
       throws Exception {
     verifyMutedIconSettingInUpdateBreakpointPresentation(Boolean.FALSE);
@@ -274,13 +305,15 @@ public class CloudDebugProcessTest extends PlatformTestCase {
     return new CloudDebugProcess(debugSession);
   }
 
+  @Test
   public void testOnBreakpointListChangedSetsErrorMessageAndUpdatesBreakpointPresentation()
       throws Exception {
     // override the default XBreakpointManager implementation with mock to use Mockito.verify()
     XBreakpointManager breakpointManager = mock(XBreakpointManager.class);
     XDebuggerManager debuggerManager = mock(XDebuggerManager.class);
     when(debuggerManager.getBreakpointManager()).thenReturn(breakpointManager);
-    ((ProjectImpl) getProject()).registerComponentInstance(XDebuggerManager.class, debuggerManager);
+    ((ProjectImpl) testFixture.getProject())
+        .registerComponentInstance(XDebuggerManager.class, debuggerManager);
 
     ArrayList<Breakpoint> breakpoints = new ArrayList<Breakpoint>();
     Breakpoint breakpoint = new Breakpoint();
